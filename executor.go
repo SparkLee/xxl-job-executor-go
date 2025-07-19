@@ -155,7 +155,7 @@ func (e *executor) runTask(writer http.ResponseWriter, request *http.Request) {
 				e.runList.Del(Int64ToStr(oldTask.Id))
 			}
 		} else { //单机串行,丢弃后续调度 都进行阻塞
-			_, _ = writer.Write(returnCall(param, FailureCode, "There are tasks running"))
+			_, _ = writer.Write(returnCall(param, SuccessCode, "任务已经在运行了")) // TODO 我需要用xxl-job实现秒级调度，但是任务的运行时间可能超过1秒，故此处直接返回SuccessCode，而非FailureCode，后续可以考虑添加一个配置来控制到底返回什么状态码！
 			e.log.Error("任务[" + Int64ToStr(param.JobID) + "]已经在运行了:" + param.ExecutorHandler)
 			return
 		}

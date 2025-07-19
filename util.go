@@ -56,11 +56,21 @@ func returnIdleBeat(code int64) []byte {
 	return str
 }
 
+//单机串行/丢弃后续调度（都进行阻塞）返回
+func returnDiscard() []byte {
+	data := res{
+		Code: SuccessCode,
+		Msg:  "任务已经在运行了，直接返回，不重复执行！",
+	}
+	str, _ := json.Marshal(data)
+	return str
+}
+
 //通用返回
 func returnGeneral() []byte {
 	data := &res{
 		Code: SuccessCode,
-		Msg:  "",
+		Msg:  "success",
 	}
 	str, _ := json.Marshal(data)
 	return str

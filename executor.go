@@ -56,13 +56,13 @@ func newExecutor(opts ...Option) *executor {
 type executor struct {
 	opts    Options
 	address string
-	regList *taskList //注册任务列表
-	runList *taskList //正在执行任务列表
+	regList *taskList // 注册任务列表
+	runList *taskList // 正在执行任务列表
 	mu      sync.RWMutex
 	log     Logger
 
-	logHandler  LogHandler   //日志查询handler
-	middlewares []Middleware //中间件
+	logHandler  LogHandler   // 日志查询handler
+	middlewares []Middleware // 中间件
 }
 
 func (e *executor) Init(opts ...Option) {
@@ -146,18 +146,29 @@ func (e *executor) runTask(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	//阻塞策略处理
+	// 阻塞策略处理
 	if e.runList.Exists(Int64ToStr(param.JobID)) {
-		if param.ExecutorBlockStrategy == coverEarly { //覆盖之前调度
+		if param.ExecutorBlockStrategy == coverEarly { // 覆盖之前调度
 			oldTask := e.runList.Get(Int64ToStr(param.JobID))
 			if oldTask != nil {
 				oldTask.Cancel()
 				e.runList.Del(Int64ToStr(oldTask.Id))
 			}
-		} else { //单机串行,丢弃后续调度 都进行阻塞
-			//_, _ = writer.Write(returnCall(param, FailureCode, "There are tasks running"))
-			_, _ = writer.Write(returnDiscard()) // TODO 我需要用xxl-job实现秒级调度，但是任务的运行时间可能超过1秒，故此处直接返回SuccessCode，而非FailureCode，后续可以考虑添加一个配置来控制到底返回什么状态码！
-			e.log.Error("任务[" + Int64ToStr(param.JobID) + "]已经在运行了:" + param.ExecutorHandler)
+		} else { // 单机串行,丢弃后续调度 都进行阻塞
+			// _, _ = writer.Write(returnCall(param, FailureCode, "There are tasks running"))
+
+			// TODO 我需要用xxl-job实现秒级调度，但是任务的运行时间可能超过1秒，故此处直接返回SuccessCode，而非FailureCode，后续可以考虑添加一个配置来控制到底返回什么状态码！
+			_, _ = writer.Write(returnDiscard())
+			// 直接回调成功
+			msg := "任务[" + Int64ToStr(param.JobID) + "]已经在运行了:" + param.ExecutorHandler
+			task := e.regList.Get(param.ExecutorHandler)
+			task.Id = param.JobID
+			task.Name = param.ExecutorHandler
+			task.Param = param
+			task.log = e.log
+			e.callback(task, SuccessCode, msg)
+
+			e.log.Error(msg)
 			return
 		}
 	}
@@ -257,7 +268,7 @@ func (e *executor) idleBeat(writer http.ResponseWriter, request *http.Request) {
 // 注册执行器到调度中心
 func (e *executor) registry() {
 
-	t := time.NewTimer(time.Second * 0) //初始立即执行
+	t := time.NewTimer(time.Second * 0) // 初始立即执行
 	defer t.Stop()
 	req := &Registry{
 		RegistryGroup: "EXECUTOR",
@@ -270,7 +281,7 @@ func (e *executor) registry() {
 	}
 	for {
 		<-t.C
-		t.Reset(time.Second * time.Duration(20)) //20秒心跳防止过期
+		t.Reset(time.Second * time.Duration(20)) // 20秒心跳防止过期
 		func() {
 			result, err := e.post("/api/registry", string(param))
 			if err != nil {
@@ -297,7 +308,7 @@ func (e *executor) registry() {
 
 // 执行器注册摘除
 func (e *executor) registryRemove() {
-	t := time.NewTimer(time.Second * 0) //初始立即执行
+	t := time.NewTimer(time.Second * 0) // 初始立即执行
 	defer t.Stop()
 	req := &Registry{
 		RegistryGroup: "EXECUTOR",

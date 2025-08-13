@@ -3,6 +3,7 @@ package xxl
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -347,7 +348,7 @@ func (e *executor) directCallback(task *Task, code int64, msg string) {
 		e.log.Error("callback ReadAll err : ", err.Error())
 		return
 	}
-	e.log.Info("不执行任务直接回调成功:" + string(body))
+	e.log.Info(fmt.Sprintf("不执行任务直接回调成功[%s|jobId=%d|logId=%d]：%s", task.Param.ExecutorHandler, task.Param.JobID, task.Param.LogID, string(body)))
 }
 
 // 回调任务
@@ -364,7 +365,7 @@ func (e *executor) callback(task *Task, code int64, msg string) {
 		e.log.Error("callback ReadAll err : ", err.Error())
 		return
 	}
-	e.log.Info("任务回调成功:" + string(body))
+	e.log.Info(fmt.Sprintf("任务回调成功[%s|jobId=%d|logId=%d]：%s", task.Param.ExecutorHandler, task.Param.JobID, task.Param.LogID, string(body)))
 }
 
 // post

@@ -159,13 +159,8 @@ func (e *executor) runTask(writer http.ResponseWriter, request *http.Request) {
 			msg := fmt.Sprintf("任务[%s]已经在运行了", taskLogInfo(param))
 
 			// 不执行任务，直接回调成功
-			task := e.regList.Get(param.ExecutorHandler)
-			task.Id = param.JobID
-			task.Name = param.ExecutorHandler
-			task.Param = param
-			task.log = e.log
 			go func() {
-				e.directCallback(task, SuccessCode, msg)
+				e.directCallback(param, SuccessCode, msg)
 			}()
 
 			// 响应调度请示
@@ -337,8 +332,8 @@ func (e *executor) registryRemove() {
 }
 
 // 不执行任务，直接回调
-func (e *executor) directCallback(task *Task, code int64, msg string) {
-	res, err := e.post("/api/callback", string(returnCall(task.Param, code, msg)))
+func (e *executor) directCallback(param *RunReq, code int64, msg string) {
+	res, err := e.post("/api/callback", string(returnCall(param, code, msg)))
 	if err != nil {
 		e.log.Error("callback err : ", err.Error())
 		return
@@ -349,7 +344,7 @@ func (e *executor) directCallback(task *Task, code int64, msg string) {
 		e.log.Error("callback ReadAll err : ", err.Error())
 		return
 	}
-	e.log.Info(fmt.Sprintf("任务[%s]不执行直接回调成功：%s", taskLogInfo(task.Param), string(body)))
+	e.log.Info(fmt.Sprintf("任务[%s]不执行直接回调成功：%s", taskLogInfo(param), string(body)))
 }
 
 // 回调任务

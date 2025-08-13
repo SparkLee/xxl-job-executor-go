@@ -157,21 +157,14 @@ func (e *executor) runTask(writer http.ResponseWriter, request *http.Request) {
 		} else { // 单机串行,丢弃后续调度 都进行阻塞
 			msg := "任务[" + Int64ToStr(param.JobID) + "]已经在运行了:" + param.ExecutorHandler
 
-			// 直接回调成功
-			cxt := context.Background()
+			// 不执行任务，直接回调成功
 			task := e.regList.Get(param.ExecutorHandler)
-			if param.ExecutorTimeout > 0 {
-				task.Ext, task.Cancel = context.WithTimeout(cxt, time.Duration(param.ExecutorTimeout)*time.Second)
-			} else {
-				task.Ext, task.Cancel = context.WithCancel(cxt)
-			}
 			task.Id = param.JobID
 			task.Name = param.ExecutorHandler
 			task.Param = param
 			task.log = e.log
-			e.runList.Set(Int64ToStr(task.Id), task)
-			go func() { // 不执行任务，直接回调成功
-				e.callback(task, SuccessCode, msg)
+			go func() {
+				e.directCallback(task, SuccessCode, msg)
 			}()
 
 			// 响应调度请示
@@ -341,7 +334,23 @@ func (e *executor) registryRemove() {
 	e.log.Info("执行器摘除成功:" + string(body))
 }
 
-// 回调任务列表
+// 不执行任务，直接回调
+func (e *executor) directCallback(task *Task, code int64, msg string) {
+	res, err := e.post("/api/callback", string(returnCall(task.Param, code, msg)))
+	if err != nil {
+		e.log.Error("callback err : ", err.Error())
+		return
+	}
+	defer res.Body.Close()
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		e.log.Error("callback ReadAll err : ", err.Error())
+		return
+	}
+	e.log.Info("不执行任务直接回调成功:" + string(body))
+}
+
+// 回调任务
 func (e *executor) callback(task *Task, code int64, msg string) {
 	e.runList.Del(Int64ToStr(task.Id))
 	res, err := e.post("/api/callback", string(returnCall(task.Param, code, msg)))

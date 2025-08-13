@@ -161,13 +161,21 @@ func (e *executor) runTask(writer http.ResponseWriter, request *http.Request) {
 			_, _ = writer.Write(returnDiscard())
 			// 直接回调成功
 			msg := "任务[" + Int64ToStr(param.JobID) + "]已经在运行了:" + param.ExecutorHandler
+			cxt := context.Background()
 			task := e.regList.Get(param.ExecutorHandler)
+			if param.ExecutorTimeout > 0 {
+				task.Ext, task.Cancel = context.WithTimeout(cxt, time.Duration(param.ExecutorTimeout)*time.Second)
+			} else {
+				task.Ext, task.Cancel = context.WithCancel(cxt)
+			}
 			task.Id = param.JobID
 			task.Name = param.ExecutorHandler
 			task.Param = param
 			task.log = e.log
-			e.callback(task, SuccessCode, msg)
-
+			e.runList.Set(Int64ToStr(task.Id), task)
+			go task.Run(func(code int64, msg string) {
+				e.callback(task, SuccessCode, msg)
+			})
 			e.log.Error(msg)
 			return
 		}

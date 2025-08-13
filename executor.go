@@ -404,5 +404,5 @@ func (e *executor) IdleBeat(writer http.ResponseWriter, request *http.Request) {
 }
 
 func taskLogInfo(param *RunReq) string {
-	return fmt.Sprintf("%s|jobId=%d|logId=%d", param.ExecutorHandler, param.JobID, param.LogID)
+	return fmt.Sprintf("%s|jobId=%d|当前logId=%d", param.ExecutorHandler, param.JobID, param.LogID)
 }

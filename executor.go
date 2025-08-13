@@ -140,7 +140,7 @@ func (e *executor) runTask(writer http.ResponseWriter, request *http.Request) {
 		e.log.Error("参数解析错误:" + string(req))
 		return
 	}
-	e.log.Info("任务[%s]参数:%v", taskLogInfo(param), param)
+	e.log.Info("任务[%s]参数：%v", taskLogInfo(param), param)
 	if !e.regList.Exists(param.ExecutorHandler) {
 		_, _ = writer.Write(returnCall(param, FailureCode, "Task not registered"))
 		e.log.Error("任务[" + Int64ToStr(param.JobID) + "]没有注册:" + param.ExecutorHandler)
@@ -156,7 +156,7 @@ func (e *executor) runTask(writer http.ResponseWriter, request *http.Request) {
 				e.runList.Del(Int64ToStr(oldTask.Id))
 			}
 		} else { // 单机串行,丢弃后续调度 都进行阻塞
-			msg := fmt.Sprintf("任务[%s]已经在运行了:%s", taskLogInfo(param), param.ExecutorHandler)
+			msg := fmt.Sprintf("任务[%s]已经在运行了", taskLogInfo(param))
 
 			// 不执行任务，直接回调成功
 			task := e.regList.Get(param.ExecutorHandler)
@@ -193,8 +193,9 @@ func (e *executor) runTask(writer http.ResponseWriter, request *http.Request) {
 	e.runList.Set(Int64ToStr(task.Id), task)
 	go task.Run(func(code int64, msg string) {
 		e.callback(task, code, msg)
+		e.log.Info("任务[%s]执行完成", taskLogInfo(param))
 	})
-	e.log.Info("任务[" + Int64ToStr(param.JobID) + "]开始执行:" + param.ExecutorHandler)
+	e.log.Info("任务[%s]开始执行", taskLogInfo(param))
 	_, _ = writer.Write(returnGeneral())
 }
 
@@ -348,7 +349,7 @@ func (e *executor) directCallback(task *Task, code int64, msg string) {
 		e.log.Error("callback ReadAll err : ", err.Error())
 		return
 	}
-	e.log.Info(fmt.Sprintf("不执行任务直接回调成功[%s]：%s", taskLogInfo(task.Param), string(body)))
+	e.log.Info(fmt.Sprintf("任务[%s]不执行直接回调成功：%s", taskLogInfo(task.Param), string(body)))
 }
 
 // 回调任务
@@ -365,7 +366,7 @@ func (e *executor) callback(task *Task, code int64, msg string) {
 		e.log.Error("callback ReadAll err : ", err.Error())
 		return
 	}
-	e.log.Info(fmt.Sprintf("任务回调成功[%s]：%s", taskLogInfo(task.Param), string(body)))
+	e.log.Info(fmt.Sprintf("任务[%s]回调成功：%s", taskLogInfo(task.Param), string(body)))
 }
 
 // post

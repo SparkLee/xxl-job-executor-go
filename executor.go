@@ -155,12 +155,9 @@ func (e *executor) runTask(writer http.ResponseWriter, request *http.Request) {
 				e.runList.Del(Int64ToStr(oldTask.Id))
 			}
 		} else { // 单机串行,丢弃后续调度 都进行阻塞
-			// _, _ = writer.Write(returnCall(param, FailureCode, "There are tasks running"))
-
-			// TODO 我需要用xxl-job实现秒级调度，但是任务的运行时间可能超过1秒，故此处直接返回SuccessCode，而非FailureCode，后续可以考虑添加一个配置来控制到底返回什么状态码！
-			_, _ = writer.Write(returnDiscard())
-			// 直接回调成功
 			msg := "任务[" + Int64ToStr(param.JobID) + "]已经在运行了:" + param.ExecutorHandler
+
+			// 直接回调成功
 			cxt := context.Background()
 			task := e.regList.Get(param.ExecutorHandler)
 			if param.ExecutorTimeout > 0 {
@@ -173,10 +170,15 @@ func (e *executor) runTask(writer http.ResponseWriter, request *http.Request) {
 			task.Param = param
 			task.log = e.log
 			e.runList.Set(Int64ToStr(task.Id), task)
-			go task.Run(func(code int64, msg string) {
+			go func() {
 				e.callback(task, SuccessCode, msg)
-			})
-			e.log.Error(msg)
+			}()
+
+			// TODO 我需要用xxl-job实现秒级调度，但是任务的运行时间可能超过1秒，故此处直接返回SuccessCode，而非FailureCode，后续可以考虑添加一个配置来控制到底返回什么状态码！
+			// _, _ = writer.Write(returnCall(param, FailureCode, "There are tasks running"))
+			_, _ = writer.Write(returnDiscard())
+			e.log.Info(msg)
+
 			return
 		}
 	}
